@@ -1,7 +1,7 @@
 from flask import Flask, request
 from flask_restx import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
-from schemas import movie_schema, movies_schema
+from schemas import *
 from models import *
 
 app = Flask(__name__)
@@ -14,6 +14,8 @@ db = SQLAlchemy(app)
 
 api = Api(app)
 movie_ns = api.namespace('movies')
+director_ns = api.namespace('directors')
+genre_ns = api.namespace('genres')
 
 
 @movie_ns.route('/')
@@ -50,8 +52,8 @@ class MovieView(Resource):
                                                          Movie.trailer,
                                                          Genre.name.label('genre'),
                                                          Director.name.label('director')).join(Genre).join(
-                                                         Director).filter(
-                                                         Movie.id == mid)
+            Director).filter(
+            Movie.id == mid)
         movie = movie_with_genre_and_director.first()
         if not movie:
             return "Такого фильма нет", 404
@@ -106,6 +108,92 @@ class MovieView(Resource):
         db.session.commit()
         db.session.close()
         return "Фильм удален", 204
+
+
+@director_ns.route('/')
+class DirectorsView(Resource):
+    def get(self):
+        all_directors = db.session.query(Director).all()
+        return directors_schema.dump(all_directors), 200
+
+    def post(self):
+        req_json = request.json
+        new_director = Director(**req_json)
+        with db.session.begin():
+            db.session.add(new_director)
+        return "Режиссер создан", 201
+
+
+@director_ns.route('/<int:did>')
+class DirectorView(Resource):
+    def get(self, did: int):
+        director = db.session.query(Director).get(did)
+        if not director:
+            return "Такого режиссера нет", 404
+        return director_schema.dump(director), 200
+
+    def put(self, did: int):
+        director = db.session.query(Director).get(did)
+        if not director:
+            return "Такого режиссера нет", 404
+        req_json = request.json
+        director.name = req_json['name']
+        db.session.add(director)
+        db.session.commit()
+        db.session.close()
+        return "Режиссер обновлен", 200
+
+    def delete(self, did: int):
+        director = db.session.query(Director).get(did)
+        if not director:
+            return "Такого режиссера нет", 404
+        db.session.delete(director)
+        db.session.commit()
+        db.session.close()
+        return "Режиссер удален", 204
+
+
+@genre_ns.route('/')
+class GenresView(Resource):
+    def get(self):
+        all_genres = db.session.query(Genre).all()
+        return genres_schema.dump(all_genres), 200
+
+    def post(self):
+        req_json = request.json
+        new_genre = Genre(**req_json)
+        with db.session.begin():
+            db.session.add(new_genre)
+        return "Жанр создан", 201
+
+
+@genre_ns.route('/<int:gid>')
+class GenreView(Resource):
+    def get(self, gid: int):
+        genre = db.session.query(Director).get(gid)
+        if not genre:
+            return "Такого жанра нет", 404
+        return genre_schema.dump(genre), 200
+
+    def put(self, gid: int):
+        genre = db.session.query(Genre).get(gid)
+        if not genre:
+            return "Такого жанра нет", 404
+        req_json = request.json
+        genre.name = req_json['name']
+        db.session.add(genre)
+        db.session.commit()
+        db.session.close()
+        return "Жанр обновлен", 200
+
+    def delete(self, gid: int):
+        genre = db.session.query(Genre).get(gid)
+        if not genre:
+            return "Такого жанра нет", 404
+        db.session.delete(genre)
+        db.session.commit()
+        db.session.close()
+        return "Жанр удален", 204
 
 
 if __name__ == '__main__':
